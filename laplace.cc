@@ -171,7 +171,7 @@ template<int dim>
 class laplace
 {
 public:
-  laplace();
+  laplace(const FiniteElement<dim> &fe);
   ~laplace();
   void run ();
 
@@ -184,7 +184,7 @@ private:
   void output_results () ;
 
   Triangulation<dim> triangulation;
-  FE_Q<dim> fe;
+  SmartPointer<const FiniteElement<dim> > fe;
   DoFHandler<dim> dof_handler;
 
   SparsityPattern sparsity_pattern;
@@ -207,7 +207,7 @@ private:
 // 		}
 
 template <int dim>
-laplace<dim>::laplace ()  :  fe (2),  dof_handler (triangulation)
+laplace<dim>::laplace (const FiniteElement<dim> &fe)  :  fe (&fe),  dof_handler (triangulation)
 {}
 
 
@@ -236,7 +236,7 @@ void laplace<dim>::refine_grid ()
 template <int dim>
 void laplace<dim>::setup_system ()
 {
-  dof_handler.distribute_dofs (fe);
+  dof_handler.distribute_dofs (*fe);
 
   DynamicSparsityPattern dsp (dof_handler.n_dofs());
   DoFTools::make_sparsity_pattern (dof_handler, dsp);
@@ -256,9 +256,9 @@ template <int dim>
 void laplace<dim>::assemble_system ()
 {
   QGauss<dim>  quadrature_formula(3);
-  FEValues<dim> fe_values (fe, quadrature_formula, update_values | update_gradients | update_quadrature_points | update_JxW_values);
+  FEValues<dim> fe_values (*fe, quadrature_formula, update_values | update_gradients | update_quadrature_points | update_JxW_values);
 
-   int   dofs_per_cell = fe.dofs_per_cell;
+   int   dofs_per_cell = fe->dofs_per_cell;
    int   n_q_points    = quadrature_formula.size();
 
   FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
@@ -334,12 +334,10 @@ template <int dim>
 void laplace<dim>::process_solution (const unsigned int cycle)
 {
   Vector<float> difference_per_cell (triangulation.n_active_cells());
-  VectorTools::integrate_difference (dof_handler,
-                                     solution,
-                                     Solution<dim>(),
-                                     difference_per_cell,
-                                     QGauss<dim>(3),
-                                     VectorTools::L2_norm);
+
+  VectorTools::integrate_difference (dof_handler, solution, Solution<dim>(), difference_per_cell, QGauss<dim>(3), 
+                                                                                              VectorTools::L2_norm);
+
   const double L2_error = VectorTools::compute_global_error(triangulation,
                                                             difference_per_cell,
                                                             VectorTools::L2_norm);
@@ -365,7 +363,7 @@ void laplace<dim>::process_solution (const unsigned int cycle)
 template <int dim>
 void laplace<dim>::run ()
 {
-  const unsigned int n_cycles = 7;
+  const unsigned int n_cycles = 6;
   for (unsigned int cycle=0; cycle<n_cycles; ++cycle)
     {
       if (cycle == 0)
@@ -389,39 +387,45 @@ void laplace<dim>::run ()
     convergence_table.set_tex_caption("cells", "\\# cells");
     convergence_table.set_tex_caption("dofs", "\\# dofs");
     convergence_table.set_tex_caption("L2", "$L^2$-error");
-
     convergence_table.set_tex_format("cells", "r");
     convergence_table.set_tex_format("dofs", "r");
+
+
     std::cout << std::endl;
     convergence_table.write_text(std::cout);
+
     std::string error_filename = "error";
-
-
     error_filename += ".tex";
     std::ofstream error_table_file(error_filename.c_str());
     convergence_table.write_tex(error_table_file);
+
+
+    std::string error_txtfile = "error-txt";
+    // error_filename += std::to_string(dim) ;
+    error_filename += ".txt";
+    std::ofstream error_txt_file(error_txtfile.c_str());
+    convergence_table.write_text(error_txt_file);
+
 
 
     convergence_table.add_column_to_supercolumn("cycle", "n cells");
     convergence_table.add_column_to_supercolumn("cells", "n cells");
     std::vector<std::string> new_order;
     new_order.push_back("n cells");
-
     new_order.push_back("L2");
     convergence_table.set_column_order (new_order);
+
     convergence_table
     .evaluate_convergence_rates("L2", ConvergenceTable::reduction_rate);
     convergence_table
     .evaluate_convergence_rates("L2", ConvergenceTable::reduction_rate_log2);
 
+
     std::cout << std::endl;
     convergence_table.write_text(std::cout);
+
     std::string conv_filename = "convergence";
-
-
     conv_filename += "-global";
-
-
     conv_filename += ".tex";
     std::ofstream table_file(conv_filename.c_str());
     convergence_table.write_tex(table_file);
@@ -432,11 +436,17 @@ void laplace<dim>::run ()
 
 int main ()
 {
+  const unsigned int dim = 2;
+  const unsigned int poly_order = 3;  
+  
   using namespace dealii;
   using namespace LaplaceSolver;
 
   // deallog.depth_console (2); // for CG iteration convergence info.
-  laplace<2> problem1;
-  problem1.run ();
+
+  FE_Q<dim> fe(poly_order);
+  laplace<dim> problem (fe);
+  problem.run ();
+
   return 0;
 }

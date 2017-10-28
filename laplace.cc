@@ -414,7 +414,7 @@ template <int dim>
 void laplace<dim>::run ()
 {
   const unsigned int n_cycles = 5;
-  double convg_norm = 1, T = 0.0, dt = 0.1 ;
+  double convg_norm = 1, T = 0.0, dt = 0.01 ;
   for (unsigned int cycle=0; cycle<n_cycles; ++cycle)
     {
       std::cout << "Current cycle: " << cycle << std::endl ;      
@@ -431,12 +431,13 @@ void laplace<dim>::run ()
       while(convg_norm > 1e-8)
       {
         T += dt ;
-        std::cout << "    Current time: " << T << std::endl ;
+        std::cout << "  Current time: " << T << std::endl ;
         
         modify_system_current_time (dt);
         solve ();
         assemble_system ();        
         convg_norm = check_convergence () ;
+        std::cout << "    norm: " << convg_norm << std::endl ;
       }
       // output_results ();
 
@@ -500,8 +501,8 @@ void laplace<dim>::run ()
 
 int main ()
 {
-  const unsigned int dim = 1;
-  const unsigned int poly_degree = 1;  
+  const unsigned int dim = 2;
+  const unsigned int poly_degree = 3;  
   
   using namespace dealii;
   using namespace LaplaceSolver;

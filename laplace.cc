@@ -179,8 +179,11 @@ private:
   void make_grid ();
   void refine_grid () ;
   void setup_system ();
+  void initial_condition () ;
   void assemble_system ();
+  void modify_system_current_time (double dt) ;
   void solve ();
+  double check_convergence () ;
   void output_results () ;
 
   Triangulation<dim> triangulation;
@@ -222,7 +225,7 @@ template <int dim>
 void laplace<dim>::make_grid ()
 {
   GridGenerator::hyper_cube (triangulation, -1, 1);
-  triangulation.refine_global (3);
+  triangulation.refine_global (4);
 }
 
 
@@ -249,6 +252,14 @@ void laplace<dim>::setup_system ()
   system_rhs.reinit (dof_handler.n_dofs());
 
 //  std::out << sizeof(exact_solution) << std::endl;
+}
+
+
+template <int dim>
+void laplace<dim>::initial_condition ()
+{
+  const bool 	omit_zeroing_entries = false ;
+  solution.reinit (dof_handler.n_dofs(), omit_zeroing_entries);  
 }
 
 
@@ -312,12 +323,51 @@ void laplace<dim>::assemble_system ()
 
 
 template <int dim>
+void laplace<dim>::modify_system_current_time (double dt)
+{
+  int dofs_per_cell = fe->dofs_per_cell;
+
+  typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active();
+  typename DoFHandler<dim>::active_cell_iterator endc = dof_handler.end();
+
+  std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+
+  system_matrix *= (dt) ;
+  for (; cell!=endc; ++cell)
+  {
+    cell->get_dof_indices (local_dof_indices);
+    for (int i=0; i<dofs_per_cell; ++i){
+      for (int j=0; j<dofs_per_cell; ++j) {
+        if(local_dof_indices[i] == local_dof_indices[j])
+          system_matrix.add (local_dof_indices[i], local_dof_indices[j], 1) ;
+      }
+    }
+  }
+
+  system_rhs *= (dt) ;
+  system_rhs += solution ;
+  
+}
+
+
+template <int dim>
 void laplace<dim>::solve ()
 {
   SolverControl solver_control (5000, 1e-12);
   SolverCG<> solver (solver_control);
 
   solver.solve (system_matrix, solution, system_rhs, PreconditionIdentity());
+}
+
+template <int dim>
+double laplace<dim>::check_convergence ()
+{
+  Vector<double> rhs_by_product(dof_handler.n_dofs()) ;
+  
+  system_matrix.vmult(rhs_by_product, solution) ;
+  rhs_by_product -= solution ;
+
+  return rhs_by_product.l2_norm() ; 
 }
 
 
@@ -363,17 +413,31 @@ void laplace<dim>::process_solution (const unsigned int cycle)
 template <int dim>
 void laplace<dim>::run ()
 {
-  const unsigned int n_cycles = 6;
+  const unsigned int n_cycles = 5;
+  double convg_norm = 1, T = 0.0, dt = 0.1 ;
   for (unsigned int cycle=0; cycle<n_cycles; ++cycle)
     {
+      std::cout << "Current cycle: " << cycle << std::endl ;      
+
       if (cycle == 0)
         make_grid ();
       else
         refine_grid ();
 
       setup_system ();
-      assemble_system ();
-      solve ();
+      initial_condition ();
+
+      assemble_system ();      
+      while(convg_norm > 1e-8)
+      {
+        T += dt ;
+        std::cout << "    Current time: " << T << std::endl ;
+        
+        modify_system_current_time (dt);
+        solve ();
+        assemble_system ();        
+        convg_norm = check_convergence () ;
+      }
       // output_results ();
 
       process_solution (cycle);
@@ -436,15 +500,15 @@ void laplace<dim>::run ()
 
 int main ()
 {
-  const unsigned int dim = 2;
-  const unsigned int poly_order = 3;  
+  const unsigned int dim = 1;
+  const unsigned int poly_degree = 1;  
   
   using namespace dealii;
   using namespace LaplaceSolver;
 
   // deallog.depth_console (2); // for CG iteration convergence info.
 
-  FE_Q<dim> fe(poly_order);
+  FE_Q<dim> fe(poly_degree);
   laplace<dim> problem (fe);
   problem.run ();
 

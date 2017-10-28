@@ -192,6 +192,7 @@ private:
 
   SparsityPattern sparsity_pattern;
   SparseMatrix<double> system_matrix;
+  SparseMatrix<double> basis_inner_product ;
 
   void process_solution (const unsigned int cycle);
   Vector<double> solution;
@@ -246,6 +247,7 @@ void laplace<dim>::setup_system ()
   sparsity_pattern.copy_from(dsp);  
 
   system_matrix.reinit (sparsity_pattern);
+  basis_inner_product.reinit (sparsity_pattern) ;
 
   // exact_solution.reinit (dof_handler.n_dofs());
   solution.reinit (dof_handler.n_dofs());
@@ -274,6 +276,7 @@ void laplace<dim>::assemble_system ()
 
   FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
   Vector<double>       cell_rhs (dofs_per_cell);
+  FullMatrix<double> cell_basis_inner_product (dofs_per_cell, dofs_per_cell) ;
 
   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
@@ -290,15 +293,20 @@ void laplace<dim>::assemble_system ()
 
       cell_matrix = 0;
       cell_rhs = 0;
+      cell_basis_inner_product = 0;
 
       right_hand_side.value_list (fe_values.get_quadrature_points(), rhs_values); // new
 
       for (int q_index=0; q_index<n_q_points; ++q_index)
         {
           for (int i=0; i<dofs_per_cell; ++i)
+          {
             for (int j=0; j<dofs_per_cell; ++j)
-              cell_matrix(i,j) += (fe_values.shape_grad (i, q_index) * fe_values.shape_grad (j, q_index) * fe_values.JxW (q_index));
-
+              {
+                cell_matrix(i,j) += (fe_values.shape_grad (i, q_index) * fe_values.shape_grad (j, q_index) * fe_values.JxW (q_index)) ;
+                cell_basis_inner_product(i,j) += (fe_values.shape_value (i, q_index) * fe_values.shape_value (j, q_index) * fe_values.JxW (q_index)) ;
+              }
+          }
           for (int i=0; i<dofs_per_cell; ++i)
             cell_rhs(i) += (fe_values.shape_value (i, q_index) * rhs_values [q_index] * fe_values.JxW (q_index));
         }
@@ -306,8 +314,13 @@ void laplace<dim>::assemble_system ()
       cell->get_dof_indices (local_dof_indices);
 
       for (int i=0; i<dofs_per_cell; ++i)
+      {
         for (int j=0; j<dofs_per_cell; ++j)
-          system_matrix.add (local_dof_indices[i], local_dof_indices[j], cell_matrix(i,j));
+        {
+          system_matrix.add (local_dof_indices[i], local_dof_indices[j], cell_matrix(i,j)) ;
+          basis_inner_product.add (local_dof_indices[i], local_dof_indices[j], cell_basis_inner_product(i,j)) ;
+        }
+      }
 
       for (int i=0; i<dofs_per_cell; ++i)
         system_rhs(local_dof_indices[i]) += cell_rhs(i);
@@ -338,14 +351,16 @@ void laplace<dim>::modify_system_current_time (double dt)
     cell->get_dof_indices (local_dof_indices);
     for (int i=0; i<dofs_per_cell; ++i){
       for (int j=0; j<dofs_per_cell; ++j) {
-        if(local_dof_indices[i] == local_dof_indices[j])
-          system_matrix.add (local_dof_indices[i], local_dof_indices[j], 1) ;
+        system_matrix.add (local_dof_indices[i], local_dof_indices[j], basis_inner_product(local_dof_indices[i], local_dof_indices[j])) ;
       }
     }
   }
 
+  Vector<double> temporary(dof_handler.n_dofs()) ;
+
   system_rhs *= (dt) ;
-  system_rhs += solution ;
+  basis_inner_product.vmult(temporary, solution) ;
+  system_rhs += temporary ; 
   
 }
 
@@ -414,7 +429,7 @@ template <int dim>
 void laplace<dim>::run ()
 {
   const unsigned int n_cycles = 5;
-  double convg_norm = 1, T = 0.0, dt = 0.01 ;
+  double convg_norm = 1, T = 0.0, dt = 0.0001 ;
   for (unsigned int cycle=0; cycle<n_cycles; ++cycle)
     {
       std::cout << "Current cycle: " << cycle << std::endl ;      

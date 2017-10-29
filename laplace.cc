@@ -181,7 +181,7 @@ private:
   void setup_system ();
   void initial_condition () ;
   void assemble_system ();
-  void modify_system_current_time (double dt) ;
+  void solve_current_time (double dt) ;
   void solve ();
   double check_convergence () ;
   void output_results () ;
@@ -226,7 +226,7 @@ template <int dim>
 void laplace<dim>::make_grid ()
 {
   GridGenerator::hyper_cube (triangulation, -1, 1);
-  triangulation.refine_global (4);
+  triangulation.refine_global (3);
 }
 
 
@@ -336,32 +336,52 @@ void laplace<dim>::assemble_system ()
 
 
 template <int dim>
-void laplace<dim>::modify_system_current_time (double dt)
+void laplace<dim>::solve_current_time (double dt)
 {
+  SparseMatrix<double> local_system_matrix ;
+  local_system_matrix.reinit(sparsity_pattern) ;
+  local_system_matrix.copy_from(system_matrix) ;
+  
+  // SparseMatrix<double> local_basis_inner_product ;
+  // local_basis_inner_product.reinit(sparsity_pattern) ;
+  // local_basis_inner_product.copy_from(basis_inner_product) ;
+
+  Vector<double> local_system_rhs ;  
+  local_system_rhs = (system_rhs) ;
+  
   int dofs_per_cell = fe->dofs_per_cell;
 
   typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active();
   typename DoFHandler<dim>::active_cell_iterator endc = dof_handler.end();
 
   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
-
-  system_matrix *= (dt) ;
+  
+  local_system_matrix *= (dt) ;
   for (; cell!=endc; ++cell)
   {
     cell->get_dof_indices (local_dof_indices);
     for (int i=0; i<dofs_per_cell; ++i){
       for (int j=0; j<dofs_per_cell; ++j) {
-        system_matrix.add (local_dof_indices[i], local_dof_indices[j], basis_inner_product(local_dof_indices[i], local_dof_indices[j])) ;
+        local_system_matrix.add (local_dof_indices[i], local_dof_indices[j], basis_inner_product(local_dof_indices[i], local_dof_indices[j])) ;
       }
     }
   }
 
   Vector<double> temporary(dof_handler.n_dofs()) ;
 
-  system_rhs *= (dt) ;
+  local_system_rhs *= (dt) ;
   basis_inner_product.vmult(temporary, solution) ;
-  system_rhs += temporary ; 
-  
+  local_system_rhs += temporary ; 
+
+
+  std::map<types::global_dof_index,double> boundary_values;
+  VectorTools::interpolate_boundary_values (dof_handler, 0, Solution<dim>(), boundary_values);
+  MatrixTools::apply_boundary_values (boundary_values, local_system_matrix, solution, local_system_rhs);
+
+
+  SolverControl solver_control (5000, 1e-12);
+  SolverCG<> solver (solver_control);
+  solver.solve (local_system_matrix, solution, local_system_rhs, PreconditionIdentity());  
 }
 
 
@@ -377,12 +397,12 @@ void laplace<dim>::solve ()
 template <int dim>
 double laplace<dim>::check_convergence ()
 {
-  Vector<double> rhs_by_product(dof_handler.n_dofs()) ;
+  Vector<double> rhs_from_solution(dof_handler.n_dofs()) ;
   
-  system_matrix.vmult(rhs_by_product, solution) ;
-  rhs_by_product -= solution ;
+  system_matrix.vmult(rhs_from_solution, solution) ;
+  rhs_from_solution -= system_rhs ;
 
-  return rhs_by_product.l2_norm() ; 
+  return rhs_from_solution.l2_norm() ; 
 }
 
 
@@ -429,7 +449,7 @@ template <int dim>
 void laplace<dim>::run ()
 {
   const unsigned int n_cycles = 5;
-  double convg_norm = 1, T = 0.0, dt = 0.0001 ;
+  double convg_norm = 1, T = 0.0, dt = 0.01 ;
   for (unsigned int cycle=0; cycle<n_cycles; ++cycle)
     {
       std::cout << "Current cycle: " << cycle << std::endl ;      
@@ -448,14 +468,13 @@ void laplace<dim>::run ()
         T += dt ;
         std::cout << "  Current time: " << T << std::endl ;
         
-        modify_system_current_time (dt);
-        solve ();
-        assemble_system ();        
+        solve_current_time (dt); 
+        // std::cout << "    DUMMY " << std::endl ;
+        
         convg_norm = check_convergence () ;
         std::cout << "    norm: " << convg_norm << std::endl ;
       }
       // output_results ();
-
       process_solution (cycle);
     }
 

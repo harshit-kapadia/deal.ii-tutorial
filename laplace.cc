@@ -226,7 +226,7 @@ template <int dim>
 void laplace<dim>::make_grid ()
 {
   GridGenerator::hyper_cube (triangulation, -1, 1);
-  triangulation.refine_global (3);
+  triangulation.refine_global (2);
 }
 
 
@@ -342,9 +342,9 @@ void laplace<dim>::solve_current_time (double dt)
   local_system_matrix.reinit(sparsity_pattern) ;
   local_system_matrix.copy_from(system_matrix) ;
   
-  // SparseMatrix<double> local_basis_inner_product ;
-  // local_basis_inner_product.reinit(sparsity_pattern) ;
-  // local_basis_inner_product.copy_from(basis_inner_product) ;
+  SparseMatrix<double> local_basis_inner_product ;
+  local_basis_inner_product.reinit(sparsity_pattern) ;
+  local_basis_inner_product.copy_from(basis_inner_product) ;
 
   Vector<double> local_system_rhs ;  
   local_system_rhs = (system_rhs) ;
@@ -356,13 +356,13 @@ void laplace<dim>::solve_current_time (double dt)
 
   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
   
-  local_system_matrix *= (dt) ;
+  local_system_matrix *= (-dt) ;
   for (; cell!=endc; ++cell)
   {
     cell->get_dof_indices (local_dof_indices);
     for (int i=0; i<dofs_per_cell; ++i){
       for (int j=0; j<dofs_per_cell; ++j) {
-        local_system_matrix.add (local_dof_indices[i], local_dof_indices[j], basis_inner_product(local_dof_indices[i], local_dof_indices[j])) ;
+        local_system_matrix.add (local_dof_indices[i], local_dof_indices[j], local_basis_inner_product(local_dof_indices[i], local_dof_indices[j])) ;
       }
     }
   }
@@ -370,18 +370,21 @@ void laplace<dim>::solve_current_time (double dt)
   Vector<double> temporary(dof_handler.n_dofs()) ;
 
   local_system_rhs *= (dt) ;
-  basis_inner_product.vmult(temporary, solution) ;
+  local_system_matrix.vmult(temporary, solution) ;
   local_system_rhs += temporary ; 
 
 
   std::map<types::global_dof_index,double> boundary_values;
   VectorTools::interpolate_boundary_values (dof_handler, 0, Solution<dim>(), boundary_values);
-  MatrixTools::apply_boundary_values (boundary_values, local_system_matrix, solution, local_system_rhs);
+  MatrixTools::apply_boundary_values (boundary_values, local_basis_inner_product, solution, local_system_rhs);
+
+  // for (std::map<types::global_dof_index,double>::iterator it=boundary_values.begin(); it!=boundary_values.end(); ++it)
+  //   std::cout << it->first << " => " << it->second << '\n';
 
 
   SolverControl solver_control (5000, 1e-12);
   SolverCG<> solver (solver_control);
-  solver.solve (local_system_matrix, solution, local_system_rhs, PreconditionIdentity());  
+  solver.solve (local_basis_inner_product, solution, local_system_rhs, PreconditionIdentity());  
 }
 
 
@@ -448,11 +451,13 @@ void laplace<dim>::process_solution (const unsigned int cycle)
 template <int dim>
 void laplace<dim>::run ()
 {
-  const unsigned int n_cycles = 5;
-  double convg_norm = 1, T = 0.0, dt = 0.01 ;
+  const unsigned int n_cycles = 1;
+  double dt = 0.0001 ;
   for (unsigned int cycle=0; cycle<n_cycles; ++cycle)
     {
-      std::cout << "Current cycle: " << cycle << std::endl ;      
+      double convg_norm = 1, T = 0.0 ;
+
+      std::cout << "\n\n\n\n Current cycle: " << cycle << std::endl ;      
 
       if (cycle == 0)
         make_grid ();
@@ -462,17 +467,27 @@ void laplace<dim>::run ()
       setup_system ();
       initial_condition ();
 
-      assemble_system ();      
-      while(convg_norm > 1e-8)
+      assemble_system ();
+        printf(" Basis inner product- matrix (column by column) : ") ;
+        for (unsigned int i=0; i<dof_handler.n_dofs(); ++i){
+          for (unsigned int j=0; j<dof_handler.n_dofs(); ++j) {
+            printf("\n \t %0.4f ", basis_inner_product(j,i)) ;
+          }
+          printf("\n") ;
+        }    
+      while(T < 0.1)
       {
         T += dt ;
-        std::cout << "  Current time: " << T << std::endl ;
+        std::cout << "\n\n\n  Current time: " << T << std::endl ;
         
         solve_current_time (dt); 
         // std::cout << "    DUMMY " << std::endl ;
         
         convg_norm = check_convergence () ;
         std::cout << "    norm: " << convg_norm << std::endl ;
+
+        for(unsigned int i=0; i<dof_handler.n_dofs(); ++i)
+          printf("\n      %0.6f ", solution(i)) ;
       }
       // output_results ();
       process_solution (cycle);
@@ -535,7 +550,7 @@ void laplace<dim>::run ()
 
 int main ()
 {
-  const unsigned int dim = 2;
+  const unsigned int dim = 1;
   const unsigned int poly_degree = 3;  
   
   using namespace dealii;

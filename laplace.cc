@@ -63,7 +63,7 @@ double Solution<dim>::value (const Point<dim>   &p,
   double return_value = 0;
   
   const Tensor<1,dim> x = p ;
-  return_value += sin(2*M_PI*x.norm()) ;
+  return_value += sin(M_PI*x[0]) ;
   
   return return_value;
 }
@@ -75,7 +75,7 @@ Tensor<1,dim> Solution<dim>::gradient (const Point<dim>   &p,
   Tensor<1,dim> return_value;
   
   const Tensor<1,dim> x = p ;
-  return_value = cos(2*M_PI*x.norm()) ;
+  return_value = M_PI * cos(M_PI*x[0]) ;
 
   return return_value;
 }
@@ -97,7 +97,7 @@ double RightHandSide<dim>::value (const Point<dim>   &p,
   
   const Tensor<1,dim> x = p ;
       
-  return_value += sin(2*M_PI*x.norm()) ;
+  return_value += M_PI * M_PI * sin(M_PI*x[0]) ;
 
   return return_value;
 }

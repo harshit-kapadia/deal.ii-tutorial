@@ -43,128 +43,207 @@ namespace LaplaceSolver
 using namespace dealii;
 
 
+// template <int dim>
+// class Solution : public Function<dim>
+// {
+// public:
+//   Solution () : Function<dim>() {}
+//   virtual double value (const Point<dim> &p, const unsigned int component = 0) const;
+//   virtual Tensor<1,dim> gradient (const Point<dim> &p, const unsigned int component = 0) const;
+// };
+
+// template <int dim>
+// double Solution<dim>::value (const Point<dim> &p, const unsigned int) const
+// {
+//   double return_value = 0;
+  
+//   const Tensor<1,dim> x = p ;
+//   return_value += ( (x[0]*x[0]*x[0] / 6) - (x[0] / 2) ) ;
+  
+//   return return_value;
+// }
+
+// template <int dim>
+// Tensor<1,dim> Solution<dim>::gradient (const Point<dim> &p, const unsigned int) const
+// {
+//   Tensor<1,dim> return_value;
+  
+//   const Tensor<1,dim> x = p ;
+//   return_value[0] = (x[0]*x[0] / 2 ) - 0.5 ;
+
+//   return return_value;
+// }
+
+// template <int dim>
+// class RightHandSide : public Function<dim>
+// {
+// public:
+//   RightHandSide () : Function<dim>() {}
+//   virtual double value (const Point<dim> &p, const unsigned int component = 0) const;
+// };
+
+// template <int dim>
+// double RightHandSide<dim>::value (const Point<dim> &p, const unsigned int) const
+// {
+//   double return_value = 0;
+  
+//   const Tensor<1,dim> x = p ;
+      
+//   return_value += (-x[0]) ;
+
+//   return return_value;
+// }
+
 
 template <int dim>
-class SolutionBase
-{
-protected:
-  static const unsigned int n_source_centers = 3;
-  static const Point<dim>   source_centers[n_source_centers];
-  static const double       width;
-};
-
-template <>
-const Point<1>
-SolutionBase<1>::source_centers[SolutionBase<1>::n_source_centers]
-  = { Point<1>(-1.0 / 3.0),
-      Point<1>(0.0),
-      Point<1>(+1.0 / 3.0)
-    };
-
-template <>
-const Point<2>
-SolutionBase<2>::source_centers[SolutionBase<2>::n_source_centers]
-  = { Point<2>(-0.5, +0.5),
-      Point<2>(-0.5, -0.5),
-      Point<2>(+0.5, -0.5)
-    };
-
-template <int dim>
-const double SolutionBase<dim>::width = 1./8.;
-
-template <int dim>
-class Solution : public Function<dim>,
-  protected SolutionBase<dim>
+class Solution : public Function<dim>
 {
 public:
   Solution () : Function<dim>() {}
-  virtual double value (const Point<dim>   &p,
-                        const unsigned int  component = 0) const;
-  virtual Tensor<1,dim> gradient (const Point<dim>   &p,
-                                  const unsigned int  component = 0) const;
+  virtual double value (const Point<dim> &p, const unsigned int component = 0) const;
+  virtual Tensor<1,dim> gradient (const Point<dim> &p, const unsigned int component = 0) const;
 };
 
 template <int dim>
-double Solution<dim>::value (const Point<dim>   &p,
-                             const unsigned int) const
+double Solution<dim>::value (const Point<dim> &p, const unsigned int) const
 {
   double return_value = 0;
-  for (unsigned int i=0; i<this->n_source_centers; ++i)
-    {
-      const Tensor<1,dim> x_minus_xi = p - this->source_centers[i];
-      return_value += std::exp(-x_minus_xi.norm_square() /
-                               (this->width * this->width));
-    }
+  
+  const Tensor<1,dim> x = p ;
+  return_value += ( (x[0]*x[0]) - (1.0/3) ) ;
+  
   return return_value;
 }
 
 template <int dim>
-Tensor<1,dim> Solution<dim>::gradient (const Point<dim>   &p,
-                                       const unsigned int) const
+Tensor<1,dim> Solution<dim>::gradient (const Point<dim> &p, const unsigned int) const
 {
   Tensor<1,dim> return_value;
-  for (unsigned int i=0; i<this->n_source_centers; ++i)
-    {
-      const Tensor<1,dim> x_minus_xi = p - this->source_centers[i];
-      return_value += (-2 / (this->width * this->width) *
-                       std::exp(-x_minus_xi.norm_square() /
-                                (this->width * this->width)) *
-                       x_minus_xi);
-    }
+  
+  const Tensor<1,dim> x = p ;
+  return_value[0] = (2*x[0]) ;
+
   return return_value;
 }
 
 template <int dim>
-class RightHandSide : public Function<dim>,
-  protected SolutionBase<dim>
+class RightHandSide : public Function<dim>
 {
 public:
   RightHandSide () : Function<dim>() {}
-  virtual double value (const Point<dim>   &p,
-                        const unsigned int  component = 0) const;
+  virtual double value (const Point<dim> &p, const unsigned int component = 0) const;
 };
 
 template <int dim>
-double RightHandSide<dim>::value (const Point<dim>   &p,
-                                  const unsigned int) const
+double RightHandSide<dim>::value (const Point<dim> &p, const unsigned int) const
 {
   double return_value = 0;
-  for (unsigned int i=0; i<this->n_source_centers; ++i)
-    {
-      const Tensor<1,dim> x_minus_xi = p - this->source_centers[i];
-      return_value += ((2*dim - 4*x_minus_xi.norm_square()/
-                        (this->width * this->width)) /
-                       (this->width * this->width) *
-                       std::exp(-x_minus_xi.norm_square() /
-                                (this->width * this->width)));
-      // return_value += std::exp(-x_minus_xi.norm_square() /
-      //                          (this->width * this->width));
-    }
+  
+  const Tensor<1,dim> x = p ;
+      
+  return_value += (-2) ;
+
   return return_value;
 }
 
 
 
 
-
-
-
-// template<int dim>
-// class exact_solution:public Function<dim>
+// template <int dim>
+// class SolutionBase
 // {
-// public:
-// 	exact_solution...
-// 	virtual double value()..
+// protected:
+//   static const unsigned int n_source_centers = 3;
+//   static const Point<dim>   source_centers[n_source_centers];
+//   static const double       width;
 // };
 
-// constructor of exact solution
-// template<dim> double exact_solution<dim>::value()
+// template <>
+// const Point<1>
+// SolutionBase<1>::source_centers[SolutionBase<1>::n_source_centers]
+//   = { Point<1>(-1.0 / 3.0),
+//       Point<1>(0.0),
+//       Point<1>(+1.0 / 3.0)
+//     };
 
+// template <>
+// const Point<2>
+// SolutionBase<2>::source_centers[SolutionBase<2>::n_source_centers]
+//   = { Point<2>(-0.5, +0.5),
+//       Point<2>(-0.5, -0.5),
+//       Point<2>(+0.5, -0.5)
+//     };
+
+// template <int dim>
+// const double SolutionBase<dim>::width = 1./8.;
+
+// template <int dim>
+// class Solution : public Function<dim>,
+//   protected SolutionBase<dim>
 // {
+// public:
+//   Solution () : Function<dim>() {}
+//   virtual double value (const Point<dim>   &p,
+//                         const unsigned int  component = 0) const;
+//   virtual Tensor<1,dim> gradient (const Point<dim>   &p,
+//                                   const unsigned int  component = 0) const;
+// };
 
-// 	Return exact solution
-
+// template <int dim>
+// double Solution<dim>::value (const Point<dim>   &p,
+//                              const unsigned int) const
+// {
+//   double return_value = 0;
+//   for (unsigned int i=0; i<this->n_source_centers; ++i)
+//     {
+//       const Tensor<1,dim> x_minus_xi = p - this->source_centers[i];
+//       return_value += std::exp(-x_minus_xi.norm_square() /
+//                                (this->width * this->width));
+//     }
+//   return return_value;
 // }
+
+// template <int dim>
+// Tensor<1,dim> Solution<dim>::gradient (const Point<dim> &p, const unsigned int) const
+// {
+//   Tensor<1,dim> return_value;
+//   for (unsigned int i=0; i<this->n_source_centers; ++i)
+//     {
+//       const Tensor<1,dim> x_minus_xi = p - this->source_centers[i];
+//       return_value += (-2 / (this->width * this->width) * std::exp(-x_minus_xi.norm_square() / (this->width * this->width)) * x_minus_xi);
+//     }
+//   return return_value;
+// }
+
+// template <int dim>
+// class RightHandSide : public Function<dim>,
+//   protected SolutionBase<dim>
+// {
+// public:
+//   RightHandSide () : Function<dim>() {}
+//   virtual double value (const Point<dim>   &p,
+//                         const unsigned int  component = 0) const;
+// };
+
+// template <int dim>
+// double RightHandSide<dim>::value (const Point<dim>   &p,
+//                                   const unsigned int) const
+// {
+//   double return_value = 0;
+//   for (unsigned int i=0; i<this->n_source_centers; ++i)
+//     {
+//       const Tensor<1,dim> x_minus_xi = p - this->source_centers[i];
+//       return_value += ((2*dim - 4*x_minus_xi.norm_square()/
+//                         (this->width * this->width)) /
+//                        (this->width * this->width) *
+//                        std::exp(-x_minus_xi.norm_square() /
+//                                 (this->width * this->width)));
+//       // return_value += std::exp(-x_minus_xi.norm_square() /
+//       //                          (this->width * this->width));
+//     }
+//   return return_value;
+// }
+
 
 
 template<int dim>
@@ -199,16 +278,11 @@ private:
   Vector<double> system_rhs;
 
   ConvergenceTable convergence_table;
+  // TableHandler output_table ;
+  // DataOut<dim> data_out ;
+  ConvergenceTable plot_table ;
 };
 
-// laplace:error_evaluation()
-// 		{
-// 		exact_solution<2> exact_poission;
-// 		integrate_difference();
-
-
-// 		return(final l2 norm);
-// 		}
 
 template <int dim>
 laplace<dim>::laplace (const FiniteElement<dim> &fe)  :  fe (&fe),  dof_handler (triangulation)
@@ -261,7 +335,9 @@ template <int dim>
 void laplace<dim>::initial_condition ()
 {
   const bool 	omit_zeroing_entries = false ;
-  solution.reinit (dof_handler.n_dofs(), omit_zeroing_entries);  
+  solution.reinit (dof_handler.n_dofs(), omit_zeroing_entries); 
+
+  // VectorTools::interpolate(	dof_handler, Solution<dim>(), solution )	;
 }
 
 
@@ -269,10 +345,15 @@ template <int dim>
 void laplace<dim>::assemble_system ()
 {
   QGauss<dim>  quadrature_formula(3);
+  QGauss<dim-1> face_quadrature_formula(3);
+
   FEValues<dim> fe_values (*fe, quadrature_formula, update_values | update_gradients | update_quadrature_points | update_JxW_values);
+  FEFaceValues<dim> fe_face_values (*fe, face_quadrature_formula, update_values | update_quadrature_points | update_normal_vectors | update_JxW_values);
 
    int   dofs_per_cell = fe->dofs_per_cell;
    int   n_q_points    = quadrature_formula.size();
+   const unsigned int n_face_q_points = face_quadrature_formula.size();
+
 
   FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
   Vector<double>       cell_rhs (dofs_per_cell);
@@ -298,18 +379,46 @@ void laplace<dim>::assemble_system ()
       right_hand_side.value_list (fe_values.get_quadrature_points(), rhs_values); // new
 
       for (int q_index=0; q_index<n_q_points; ++q_index)
+      {
+        for (int i=0; i<dofs_per_cell; ++i)
         {
-          for (int i=0; i<dofs_per_cell; ++i)
+          for (int j=0; j<dofs_per_cell; ++j)
           {
-            for (int j=0; j<dofs_per_cell; ++j)
-              {
-                cell_matrix(i,j) += (fe_values.shape_grad (i, q_index) * fe_values.shape_grad (j, q_index) * fe_values.JxW (q_index)) ;
-                cell_basis_inner_product(i,j) += (fe_values.shape_value (i, q_index) * fe_values.shape_value (j, q_index) * fe_values.JxW (q_index)) ;
-              }
+            cell_matrix(i,j) += (fe_values.shape_grad (i, q_index) * fe_values.shape_grad (j, q_index) * fe_values.JxW (q_index)) ;
+            cell_basis_inner_product(i,j) += (fe_values.shape_value (i, q_index) * fe_values.shape_value (j, q_index) * fe_values.JxW (q_index)) ;
           }
-          for (int i=0; i<dofs_per_cell; ++i)
-            cell_rhs(i) += (fe_values.shape_value (i, q_index) * rhs_values [q_index] * fe_values.JxW (q_index));
         }
+        for (int i=0; i<dofs_per_cell; ++i)
+          cell_rhs(i) += (fe_values.shape_value (i, q_index) * rhs_values [q_index] * fe_values.JxW (q_index));
+      }
+
+      for (unsigned int face_number=0; face_number<GeometryInfo<dim>::faces_per_cell; ++face_number)
+      {
+        if (cell->face(face_number)->at_boundary()) // check whether current face of the cell is at boundary
+        { 
+          std::cout << "\n face center: " << cell->face(face_number)->center() << std::endl ;
+          fe_face_values.reinit (cell, face_number); // compute the values of the shape functions and the other quantities
+          for (unsigned int q_point=0; q_point<n_face_q_points; ++q_point) // loop over all quad pts
+            {
+              const double neumann_value = (exact_solution.gradient(fe_face_values.quadrature_point(q_point)) * fe_face_values.normal_vector(q_point));
+              std::cout << "  neumann value: " << neumann_value 
+                        << "  Gradient: " << exact_solution.gradient(fe_face_values.quadrature_point(q_point)) 
+                        << "  normal_vector on face: " << fe_face_values.normal_vector(q_point) 
+                        << std::endl ;
+              for (int i=0; i<dofs_per_cell; ++i)
+              { 
+                std::cout << "\n  cell rhs before boundary contribution: " << cell_rhs(i) << std::endl ;
+                cell_rhs(i) += ( neumann_value * fe_face_values.shape_value(i,q_point) * fe_face_values.JxW(q_point) );
+                std::cout << "  dof: " << i 
+                          << "  cell rhs: " << cell_rhs(i) 
+                          << "  shape value: " << fe_face_values.shape_value(i,q_point) 
+                          << "  JxW: " << fe_face_values.JxW(q_point) 
+                          << std::endl ;
+              }            
+            } 
+        }
+      }
+
       
       cell->get_dof_indices (local_dof_indices);
 
@@ -327,11 +436,9 @@ void laplace<dim>::assemble_system ()
     }
 
 
-  std::map<types::global_dof_index,double> boundary_values;
-
-  VectorTools::interpolate_boundary_values (dof_handler, 0, Solution<dim>(), boundary_values);
-
-  MatrixTools::apply_boundary_values (boundary_values, system_matrix, solution, system_rhs);
+  // std::map<types::global_dof_index,double> boundary_values;
+  // VectorTools::interpolate_boundary_values (dof_handler, 0, Solution<dim>(), boundary_values);
+  // MatrixTools::apply_boundary_values (boundary_values, system_matrix, solution, system_rhs);
 }
 
 
@@ -357,15 +464,21 @@ void laplace<dim>::solve_current_time (double dt)
   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
   
   local_system_matrix *= (-dt) ;
-  for (; cell!=endc; ++cell)
-  {
-    cell->get_dof_indices (local_dof_indices);
-    for (int i=0; i<dofs_per_cell; ++i){
-      for (int j=0; j<dofs_per_cell; ++j) {
-        local_system_matrix.add (local_dof_indices[i], local_dof_indices[j], local_basis_inner_product(local_dof_indices[i], local_dof_indices[j])) ;
-      }
-    }
-  }
+  // for (; cell!=endc; ++cell)
+  // {
+  //   cell->get_dof_indices (local_dof_indices);
+  //   for (int i=0; i<dofs_per_cell; ++i){
+  //     for (int j=0; j<dofs_per_cell; ++j) {
+  //       local_system_matrix.add (local_dof_indices[i], local_dof_indices[j], local_basis_inner_product(local_dof_indices[i], local_dof_indices[j])) ;
+  //     }
+  //   }
+  // }
+	for(unsigned int i=0; i<dof_handler.n_dofs(); ++i){
+		for(unsigned int j=0; j<dof_handler.n_dofs(); ++j){
+			local_system_matrix.add (i, j, local_basis_inner_product(i, j)) ;
+		}
+	}
+
 
   Vector<double> temporary(dof_handler.n_dofs()) ;
 
@@ -374,9 +487,9 @@ void laplace<dim>::solve_current_time (double dt)
   local_system_rhs += temporary ; 
 
 
-  std::map<types::global_dof_index,double> boundary_values;
-  VectorTools::interpolate_boundary_values (dof_handler, 0, Solution<dim>(), boundary_values);
-  MatrixTools::apply_boundary_values (boundary_values, local_basis_inner_product, solution, local_system_rhs);
+  // std::map<types::global_dof_index,double> boundary_values;
+  // VectorTools::interpolate_boundary_values (dof_handler, 0, Solution<dim>(), boundary_values);
+  // MatrixTools::apply_boundary_values (boundary_values, local_basis_inner_product, solution, local_system_rhs);
 
   // for (std::map<types::global_dof_index,double>::iterator it=boundary_values.begin(); it!=boundary_values.end(); ++it)
   //   std::cout << it->first << " => " << it->second << '\n';
@@ -412,9 +525,24 @@ double laplace<dim>::check_convergence ()
 template <int dim>
 void laplace<dim>::output_results ()
 {
-  std::cout << "Number of active cells: " << triangulation.n_active_cells() << std::endl;
+  // std::cout << "Number of active cells: " << triangulation.n_active_cells() << std::endl;
+  // std::cout << "Number of degrees of freedom: " << dof_handler.n_dofs() << std::endl;
 
-  std::cout << "Number of degrees of freedom: " << dof_handler.n_dofs() << std::endl;
+
+  // DataOut<dim> data_out ;
+  // data_out.attach_dof_handler (dof_handler);
+  // data_out.add_data_vector (solution, "solution");
+  // data_out.build_patches ();
+  // std::ofstream plot_file("plot.txt");
+  // data_out.write_gnuplot(plot_file);
+
+  // output_table.add_value("solution", solution[2]);
+  // std::ofstream plot_file("plot.txt");
+  // output_table.write_text(plot_file);
+
+  // plot_table.add_value("solution", solution[5]);
+  // std::ofstream plot_file("plot.txt");
+  // plot_table.write_text(plot_file);
 }
 
 
@@ -423,35 +551,83 @@ void laplace<dim>::process_solution (const unsigned int cycle)
 {
   Vector<float> difference_per_cell (triangulation.n_active_cells());
 
-  VectorTools::integrate_difference (dof_handler, solution, Solution<dim>(), difference_per_cell, QGauss<dim>(3), 
-                                                                                              VectorTools::L2_norm);
+  VectorTools::integrate_difference (dof_handler, solution, Solution<dim>(), difference_per_cell, QGauss<dim>(3), VectorTools::L2_norm);
 
-  const double L2_error = VectorTools::compute_global_error(triangulation,
-                                                            difference_per_cell,
-                                                            VectorTools::L2_norm);
+
+
+  // std::ofstream outdata; // outdata is like cin
+  //  int i; // loop index
+
+  // outdata.open("plot.txt"); // opens the file
+  //  if( !outdata ) { // file couldn't be opened
+  //     std::cerr << "Error: file could not be opened" << std::endl;
+  //     exit(1);
+  //  }
+
+  // for (int i=0; i<triangulation.n_active_cells(); ++i)
+  //     outdata << difference_per_cell(i) << std::endl;
+   
+  // outdata.close();
+
+
+
+  const double L2_error = VectorTools::compute_global_error(triangulation, difference_per_cell, VectorTools::L2_norm);
 
   const unsigned int n_active_cells=triangulation.n_active_cells();
   const unsigned int n_dofs=dof_handler.n_dofs();
-  std::cout << "Cycle " << cycle << ':'
-            << std::endl
-            << "   Number of active cells:       "
-            << n_active_cells
-            << std::endl
-            << "   Number of degrees of freedom: "
-            << n_dofs
-            << std::endl;
+  // std::cout << "Cycle " << cycle << ':'
+  //           << std::endl
+  //           << "   Number of active cells:       "
+  //           << n_active_cells
+  //           << std::endl
+  //           << "   Number of degrees of freedom: "
+  //           << n_dofs
+  //           << std::endl;
   convergence_table.add_value("cycle", cycle);
   convergence_table.add_value("cells", n_active_cells);
   convergence_table.add_value("dofs", n_dofs);
   convergence_table.add_value("L2", L2_error);
 
+
+  std::ofstream outdata; // outdata is like cin
+  outdata.open("data.txt"); // opens the file
+   if( !outdata ) { // file couldn't be opened
+      std::cerr << "Error: file could not be opened" << std::endl;
+      exit(1);
+   }
+
+  typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active();
+  typename DoFHandler<dim>::active_cell_iterator endc = dof_handler.end();
+
+  Solution<dim> exact_solution;
+
+  for (; cell!=endc; ++cell)
+  {
+    Point<dim> center = cell->center();
+    Vector<double> solution_value(1);
+    double exact_solution_value;
+    double error_value;
+
+    VectorTools::point_value	(dof_handler,
+                                    solution,
+                                    center,
+                                    solution_value);
+
+    	
+    exact_solution_value = exact_solution.value(center);
+    error_value = fabs(solution_value(0)-exact_solution_value);
+
+    outdata<< center(0) << " "<< solution_value(0)<< " " << exact_solution_value << " " << error_value << std::endl;
+  }
+    
+  outdata.close();
 }
 
 
 template <int dim>
 void laplace<dim>::run ()
 {
-  const unsigned int n_cycles = 1;
+  const unsigned int n_cycles = 5;
   double dt = 0.0001 ;
   for (unsigned int cycle=0; cycle<n_cycles; ++cycle)
     {
@@ -468,31 +644,38 @@ void laplace<dim>::run ()
       initial_condition ();
 
       assemble_system ();
-        printf(" Basis inner product- matrix (column by column) : ") ;
-        for (unsigned int i=0; i<dof_handler.n_dofs(); ++i){
-          for (unsigned int j=0; j<dof_handler.n_dofs(); ++j) {
-            printf("\n \t %0.4f ", basis_inner_product(j,i)) ;
-          }
-          printf("\n") ;
-        }    
-      while(T < 0.1)
+        // printf(" Basis inner product- matrix (column by column) : ") ;
+        // for (unsigned int i=0; i<dof_handler.n_dofs(); ++i){
+        //   for (unsigned int j=0; j<dof_handler.n_dofs(); ++j) {
+        //     printf("\n \t %0.4f ", basis_inner_product(j,i)) ;
+        //   }
+        //   printf("\n") ;
+        // }   
+      
+      // convg_norm = check_convergence () ; 
+      // std::cout << "   ||Ax-f||: " << convg_norm << std::endl ;
+        // Vector<double> rhs_from_solution(dof_handler.n_dofs()) ;
+        // system_matrix.vmult(rhs_from_solution, solution) ;
+        // std::cout << "norm: " << rhs_from_solution.linfty_norm() << std::endl ;
+      while(convg_norm > 1e-08)
       {
         T += dt ;
         std::cout << "\n\n\n  Current time: " << T << std::endl ;
         
         solve_current_time (dt); 
-        // std::cout << "    DUMMY " << std::endl ;
-        
+                
         convg_norm = check_convergence () ;
         std::cout << "    norm: " << convg_norm << std::endl ;
 
-        for(unsigned int i=0; i<dof_handler.n_dofs(); ++i)
-          printf("\n      %0.6f ", solution(i)) ;
+        // for(unsigned int i=0; i<dof_handler.n_dofs(); ++i)
+        //   printf("\n      %0.6f ", solution(i)) ;
       }
-      // output_results ();
+
+      // solve();
+
       process_solution (cycle);
     }
-
+    output_results() ;
 
     convergence_table.set_precision("L2", 3);
 
@@ -551,7 +734,7 @@ void laplace<dim>::run ()
 int main ()
 {
   const unsigned int dim = 1;
-  const unsigned int poly_degree = 3;  
+  const unsigned int poly_degree = 1;  
   
   using namespace dealii;
   using namespace LaplaceSolver;

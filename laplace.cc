@@ -42,58 +42,6 @@ namespace LaplaceSolver
 using namespace dealii;
 
 
-// template <int dim>
-// class Solution : public Function<dim>
-// {
-// public:
-//   Solution () : Function<dim>() {}
-//   virtual double value (const Point<dim> &p, const unsigned int component = 0) const;
-//   virtual Tensor<1,dim> gradient (const Point<dim> &p, const unsigned int component = 0) const;
-// };
-
-// template <int dim>
-// double Solution<dim>::value (const Point<dim> &p, const unsigned int) const
-// {
-//   double return_value = 0;
-  
-//   const Tensor<1,dim> x = p ;
-//   return_value += ( sin(M_PI * x[0]) ) ;
-  
-//   return return_value;
-// }
-
-// template <int dim>
-// Tensor<1,dim> Solution<dim>::gradient (const Point<dim> &p, const unsigned int) const
-// {
-//   Tensor<1,dim> return_value;
-  
-//   const Tensor<1,dim> x = p ;
-//   return_value[0] = (M_PI * cos(M_PI * x[0])) ;
-
-//   return return_value;
-// }
-
-// template <int dim>
-// class RightHandSide : public Function<dim>
-// {
-// public:
-//   RightHandSide () : Function<dim>() {}
-//   virtual double value (const Point<dim> &p, const unsigned int component = 0) const;
-// };
-
-// template <int dim>
-// double RightHandSide<dim>::value (const Point<dim> &p, const unsigned int) const
-// {
-//   double return_value = 0;
-  
-//   const Tensor<1,dim> x = p ;
-      
-//   return_value += (M_PI * M_PI * sin(M_PI * x[0]) ) ;
-
-//   return return_value;
-// }
-
-
 template <int dim>
 class Solution : public Function<dim>
 {
@@ -109,7 +57,7 @@ double Solution<dim>::value (const Point<dim> &p, const unsigned int) const
   double return_value = 0;
   
   const Tensor<1,dim> x = p ;
-  return_value += ( (x[0]*x[0]) - (1.0/3) ) ;
+  return_value += ( sin(M_PI * x[0]) ) ;
   
   return return_value;
 }
@@ -120,7 +68,7 @@ Tensor<1,dim> Solution<dim>::gradient (const Point<dim> &p, const unsigned int) 
   Tensor<1,dim> return_value;
   
   const Tensor<1,dim> x = p ;
-  return_value[0] = (2*x[0]) ;
+  return_value[0] = (M_PI * cos(M_PI * x[0])) ;
 
   return return_value;
 }
@@ -140,10 +88,62 @@ double RightHandSide<dim>::value (const Point<dim> &p, const unsigned int) const
   
   const Tensor<1,dim> x = p ;
       
-  return_value += (-2) ;
+  return_value += (M_PI * M_PI * sin(M_PI * x[0]) ) ;
 
   return return_value;
 }
+
+
+// template <int dim>
+// class Solution : public Function<dim>
+// {
+// public:
+//   Solution () : Function<dim>() {}
+//   virtual double value (const Point<dim> &p, const unsigned int component = 0) const;
+//   virtual Tensor<1,dim> gradient (const Point<dim> &p, const unsigned int component = 0) const;
+// };
+
+// template <int dim>
+// double Solution<dim>::value (const Point<dim> &p, const unsigned int) const
+// {
+//   double return_value = 0;
+  
+//   const Tensor<1,dim> x = p ;
+//   return_value += ( (x[0]*x[0]) - (1.0/3) ) ;
+  
+//   return return_value;
+// }
+
+// template <int dim>
+// Tensor<1,dim> Solution<dim>::gradient (const Point<dim> &p, const unsigned int) const
+// {
+//   Tensor<1,dim> return_value;
+  
+//   const Tensor<1,dim> x = p ;
+//   return_value[0] = (2*x[0]) ;
+
+//   return return_value;
+// }
+
+// template <int dim>
+// class RightHandSide : public Function<dim>
+// {
+// public:
+//   RightHandSide () : Function<dim>() {}
+//   virtual double value (const Point<dim> &p, const unsigned int component = 0) const;
+// };
+
+// template <int dim>
+// double RightHandSide<dim>::value (const Point<dim> &p, const unsigned int) const
+// {
+//   double return_value = 0;
+  
+//   const Tensor<1,dim> x = p ;
+      
+//   return_value += (-2) ;
+
+//   return return_value;
+// }
 
 
 
@@ -179,6 +179,8 @@ private:
   Vector<double> system_rhs;
 
   ConvergenceTable convergence_table;
+  ConvergenceTable convergence_table2;
+
   // TableHandler output_table ;
   // DataOut<dim> data_out ;
   ConvergenceTable plot_table ;
@@ -396,7 +398,7 @@ void laplace<dim>::solve_current_time (double dt)
   //   std::cout << it->first << " => " << it->second << '\n';
 
 
-  SolverControl solver_control (5000, 1e-12);
+  SolverControl solver_control (10000, 1e-12);
   SolverCG<> solver (solver_control);
   solver.solve (local_system_matrix, solution, local_system_rhs, PreconditionIdentity());  
 }
@@ -522,13 +524,15 @@ void laplace<dim>::process_solution (const unsigned int cycle)
   convergence_table.add_value("dofs", n_dofs);
   convergence_table.add_value("L2", L2_error);
 
+  convergence_table2.add_value("cells", n_active_cells) ;
+  convergence_table2.add_value("L2", L2_error) ;
 }
 
 
 template <int dim>
 void laplace<dim>::run ()
 {
-  const unsigned int n_cycles = 6;
+  const unsigned int n_cycles = 4;
   double dt = 0.05 ;
   for (unsigned int cycle=0; cycle<n_cycles; ++cycle)
     {
@@ -579,8 +583,10 @@ void laplace<dim>::run ()
     output_results() ;
 
     convergence_table.set_precision("L2", 3);
+    convergence_table2.set_precision("L2", 3);
 
     convergence_table.set_scientific("L2", true);
+    convergence_table2.set_scientific("L2", true);
 
     convergence_table.set_tex_caption("cells", "\\# cells");
     convergence_table.set_tex_caption("dofs", "\\# dofs");
@@ -603,6 +609,9 @@ void laplace<dim>::run ()
     error_filename += ".txt";
     std::ofstream error_txt_file(error_txtfile.c_str());
     convergence_table.write_text(error_txt_file);
+
+    std::ofstream error_plot("error-plot.txt");
+    convergence_table2.write_text(error_plot);
 
 
 
